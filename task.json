@@ -1,0 +1,36 @@
+{
+    "tasks": [
+        {
+            "name": "Devoirs",
+            "history": []
+        },
+        {
+            "name": "Douche - Matin",
+            "history": []
+        },
+        {
+            "name": "Douche - Soir",
+            "history": []
+        },
+        {
+            "name": "Brossage de dent - Matin",
+            "history": []
+        },
+        {
+            "name": "Brossage de dent - Soir",
+            "history": []
+        },
+        {
+            "name": "couch\u00e9 avant 23h (la veille)",
+            "history": []
+        },
+        {
+            "name": "Petit - Dej",
+            "history": []
+        },
+        {
+            "name": "R\u00e9ve9il 7h",
+            "history": []
+        }
+    ]
+}
