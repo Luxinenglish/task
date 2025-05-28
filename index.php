@@ -139,6 +139,54 @@ if (isset($_GET['chart'])) {
             sendNotif();
         }
     }, 1000);
+
+    // Demander la permission de notification
+    async function requestNotificationPermission() {
+        if (!('Notification' in window)) {
+            console.log('Notifications non supportées');
+            return false;
+        }
+        if (Notification.permission === 'granted') return true;
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+        return false;
+    }
+
+    // Planifier notification quotidienne à 21h
+    async function scheduleDailyNotification() {
+        if (!('serviceWorker' in navigator)) return;
+
+        const permissionGranted = await requestNotificationPermission();
+        if (!permissionGranted) return;
+
+        function scheduleNext() {
+            const now = new Date();
+            const notifTime = new Date();
+            notifTime.setHours(21, 0, 0, 0);
+            if (now >= notifTime) notifTime.setDate(notifTime.getDate() + 1);
+
+            const delay = notifTime.getTime() - now.getTime();
+            setTimeout(() => {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification('🕘 Rappel', {
+                        body: 'Pense à cocher tes tâches !',
+                        icon: '/icon-192.png',
+                        vibrate: [200, 100, 200],
+                        tag: 'daily-task-reminder'
+                    });
+                });
+                scheduleNext(); // replanifie pour le lendemain
+            }, delay);
+        }
+
+        scheduleNext();
+    }
+
+    // Appeler la fonction pour activer la notification
+    scheduleDailyNotification();
+
 </script>
 </body>
 </html>
