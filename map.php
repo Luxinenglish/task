@@ -21,7 +21,7 @@ function getDonutStats($tasks, $period) {
         }
 
         $progress = $doneYesterday > 0 ? round(($doneToday / $doneYesterday) * 100, 2) : ($doneToday > 0 ? 100 : 0);
-        $progress = min($progress, 200); // Cap à 200% si explosion
+        $progress = min($progress, 200);
 
         return [
             'labels' => ["Aujourd'hui vs Hier"],
@@ -185,64 +185,62 @@ if (isset($_GET['evolution'])) {
 
 <script>
     async function drawDonutChart(id, period, title) {
-        const res = await fetch('?donut=' + period);
-        const json = await res.json();
-        const ctx = document.getElementById(id).getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: json.labels,
-                datasets: [{
-                    data: json.data,
-                    backgroundColor: ['#28a745', '#dc3545']
-                }]
-            },
-            options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: title
-                    }
-                }
-            }
-        });
-    }
+        try {
+            const res = await fetch('?donut=' + period);
+            const json = await res.json();
 
-    async function drawEvolutionChart() {
-        const res = await fetch('?evolution');
-        const json = await res.json();
-        const ctx = document.getElementById('evolutionChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: json,
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: '% Tâches accomplies'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Dates'
-                        }
-                    }
+            const ctx = document.getElementById(id).getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: json.labels,
+                    datasets: [{
+                        data: json.data,
+                        backgroundColor: ['#28a745', '#dc3545']
+                    }]
                 },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Taux de réussite par jour (par mois superposé)'
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        }
                     }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.error("Erreur lors du chargement du graphique " + id, e);
+        }
     }
 
-    drawEvolutionChart();
+    async function updateEvolutionChart() {
+        try {
+            const res = await fetch('?evolution=1');
+            const json = await res.json();
+
+            const ctx = document.getElementById('evolutionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: json.labels,
+                    datasets: json.datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Évolution mensuelle'
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error("Erreur lors du chargement de l'évolution", e);
+        }
+    }
+
+    updateEvolutionChart();
     drawDonutChart('donutAll', 'all', 'Tâches accomplies (Total)');
     drawDonutChart('donutWeek', 'week', 'Tâches accomplies (7 derniers jours)');
     drawDonutChart('donutTodayVsYesterday', 'today_vs_yesterday', "Tâches aujourd'hui comparé à hier");
