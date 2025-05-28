@@ -51,7 +51,6 @@ function getDonutStats($tasks, $period) {
     ];
 }
 
-
 function getMonthlyEvolution($tasks) {
     $monthlyData = [];
 
@@ -126,20 +125,63 @@ if (isset($_GET['evolution'])) {
     <meta charset="UTF-8">
     <title>Statistiques</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .donut-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .donut-chart {
+            flex: 1 1 250px;
+            max-width: 300px;
+            min-width: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .donut-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
 </head>
 <body>
+
 <h2>Évolution mensuelle des tâches</h2>
 <canvas id="evolutionChart" height="120"></canvas>
 
 <h2>Progression globale</h2>
-<canvas id="donutAll" height="120"></canvas>
-
-<h2>Sur les 7 derniers jours</h2>
-<canvas id="donutWeek" height="120"></canvas>
-
-<h2>Aujourd’hui vs Hier</h2>
-<canvas id="donutTodayVsYesterday" height="120"></canvas>
-
+<div class="donut-container">
+    <div class="donut-chart">
+        <canvas id="donutAll"></canvas>
+    </div>
+    <div class="donut-chart">
+        <canvas id="donutWeek"></canvas>
+    </div>
+    <div class="donut-chart">
+        <canvas id="donutTodayVsYesterday"></canvas>
+    </div>
+</div>
 
 <script>
     async function drawDonutChart(id, period, title) {
@@ -205,5 +247,6 @@ if (isset($_GET['evolution'])) {
     drawDonutChart('donutWeek', 'week', 'Tâches accomplies (7 derniers jours)');
     drawDonutChart('donutTodayVsYesterday', 'today_vs_yesterday', "Tâches aujourd'hui comparé à hier");
 </script>
+
 </body>
 </html>
