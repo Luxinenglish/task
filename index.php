@@ -61,7 +61,7 @@ if (isset($_GET['chart'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 </head>
 <body class="p-4">
-<h1>📅 Suivi des Tâches Quotidiennes</h1>
+<h1><?= ['😊', '🚀', '🌟', '🔥', '💡', '🎉', '🌈', '📅'][date('z') % 7] ?> <?= date('j') ?> <?= date('F') ?> -  Suivi des Tâches Quotidiennes</h1>
 
 <form method="POST" class="d-flex mb-4">
     <input type="text" name="name" class="form-control me-2" required placeholder="Ajouter une tâche">
