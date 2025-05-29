@@ -1,18 +1,16 @@
 <?php
 define('DATA_FILE', 'task.json');
 
-// Initialisation du fichier si vide
+// Initialisation
 if (!file_exists(DATA_FILE)) {
-    file_put_contents(DATA_FILE, json_encode(['tasks' => []], JSON_PRETTY_PRINT));
+    file_put_contents(DATA_FILE, json_encode(['tasks' => [], 'homeworks' => []], JSON_PRETTY_PRINT));
 }
-
-// Charger les données
 $data = json_decode(file_get_contents(DATA_FILE), true);
 
 // Ajouter une tâche
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_task'])) {
     $name = trim($_POST['name']);
-    if (!empty($name)) {
+    if ($name !== '') {
         $data['tasks'][] = ['name' => $name, 'history' => []];
         file_put_contents(DATA_FILE, json_encode($data, JSON_PRETTY_PRINT));
     }
@@ -20,24 +18,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_task'])) {
     exit;
 }
 
-// Mise à jour de l'état d'une tâche pour aujourd'hui uniquement
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
-    $taskId = (int)$_POST['task_id'];
-    $date = date('Y-m-d');
-    $status = $_POST['status'] === '1' ? 1 : 0;
+// Ajouter un devoir
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_homework'])) {
+    $title = trim($_POST['title']);
+    $due = $_POST['due_date'];
+    if ($title !== '' && $due !== '') {
+        $data['homeworks'][] = ['title' => $title, 'due' => $due, 'done' => false];
+        file_put_contents(DATA_FILE, json_encode($data, JSON_PRETTY_PRINT));
+    }
+    header("Location: index.php");
+    exit;
+}
 
-    if (isset($data['tasks'][$taskId])) {
-        $data['tasks'][$taskId]['history'][$date] = $status;
+// Marquer un devoir comme fait
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_homework'])) {
+    $id = (int)$_POST['homework_id'];
+    if (isset($data['homeworks'][$id])) {
+        $data['homeworks'][$id]['done'] = !$data['homeworks'][$id]['done'];
         file_put_contents(DATA_FILE, json_encode($data, JSON_PRETTY_PRINT));
     }
     exit;
 }
 
-// Données pour le graphique
+// Mise à jour de l'état d'une tâche pour AUJOURD'HUI
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    $id = (int)$_POST['task_id'];
+    $status = $_POST['status'] === '1' ? 1 : 0;
+    $today = date('Y-m-d');
+    if (isset($data['tasks'][$id])) {
+        $data['tasks'][$id]['history'][$today] = $status;
+        file_put_contents(DATA_FILE, json_encode($data, JSON_PRETTY_PRINT));
+    }
+    exit;
+}
+
+// Données du graphique
 if (isset($_GET['chart'])) {
     $labels = [];
     $values = [];
-
     for ($i = 0; $i < 30; $i++) {
         $date = date('Y-m-d', strtotime("-" . (29 - $i) . " days"));
         $labels[] = date('d/m', strtotime($date));
@@ -47,7 +65,6 @@ if (isset($_GET['chart'])) {
         }
         $values[] = $done;
     }
-
     echo json_encode(['labels' => $labels, 'data' => $values]);
     exit;
 }
@@ -57,23 +74,75 @@ if (isset($_GET['chart'])) {
 <head>
     <meta charset="UTF-8">
     <title>Suivi Tâches</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="p-4">
-<h1><?= ['😊', '🚀', '🌟', '🔥', '💡', '🎉', '🌈', '📅'][date('z') % 7] ?> <?= date('j') ?> <?= date('F') ?> -  Suivi des Tâches Quotidiennes</h1>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 1200px;
+        margin: auto;
+    }
 
-<form method="POST" class="d-flex mb-4">
-    <input type="text" name="name" class="form-control me-2" required placeholder="Ajouter une tâche">
+    h2 {
+        text-align: center;
+        margin-top: 40px;
+    }
+
+    canvas {
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .donut-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .donut-chart {
+        flex: 1 1 250px;
+        max-width: 300px;
+        min-width: 200px;
+    }
+
+    @media (max-width: 768px) {
+        .donut-container {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+<body class="p-4">
+<h1><?= ['😊', '🚀', '🌟', '🔥', '💡', '🎉', '🌈'][date('z') % 7] ?> <?= date('j') ?> <?= date('F') ?> - Suivi des Tâches</h1>
+
+<!-- Formulaires -->
+<form method="POST" class="d-flex mb-3">
+    <input name="name" class="form-control me-2" placeholder="Ajouter une tâche" required>
     <button type="submit" name="add_task" class="btn btn-primary">Ajouter</button>
 </form>
+<form method="POST" class="d-flex mb-4 gap-2">
+    <input name="title" class="form-control" placeholder="Titre du devoir" required>
+    <input type="date" name="due_date" class="form-control" required>
+    <button type="submit" name="add_homework" class="btn btn-warning">Ajouter Devoir</button>
+</form>
 
+<!-- Graphique -->
 <canvas id="chart" height="100" class="mb-4"></canvas>
 
+<!-- Liste des tâches -->
+<h2>🚀 Tâches</h2>
 <div class="list-group">
-    <?php
-    $today = date('Y-m-d');
-    foreach ($data['tasks'] as $i => $task):
+    <?php foreach ($data['tasks'] as $i => $task):
+        $today = date('Y-m-d');
         $checked = !empty($task['history'][$today]) ? 'checked' : '';
         ?>
         <label class="list-group-item d-flex align-items-center">
@@ -83,8 +152,26 @@ if (isset($_GET['chart'])) {
     <?php endforeach; ?>
 </div>
 
+<!-- Liste des devoirs -->
+<h2 class="mt-5">📚 Devoirs</h2>
+<div class="list-group">
+    <?php foreach ($data['homeworks'] as $i => $hw): ?>
+        <form method="POST" class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <input type="hidden" name="homework_id" value="<?= $i ?>">
+                <input type="hidden" name="toggle_homework" value="1">
+                <button type="submit" class="btn btn-sm <?= $hw['done'] ? 'btn-success' : 'btn-outline-secondary' ?>">
+                    <?= $hw['done'] ? '✔️' : '❌' ?>
+                </button>
+                <strong><?= htmlspecialchars($hw['title']) ?></strong>
+                <small class="text-muted"> - À rendre le <?= date('d/m/Y', strtotime($hw['due'])) ?></small>
+            </div>
+        </form>
+    <?php endforeach; ?>
+</div>
+
 <script>
-    // Graph
+    // Graphique
     async function updateChart() {
         const res = await fetch('?chart=1');
         const json = await res.json();
@@ -104,10 +191,9 @@ if (isset($_GET['chart'])) {
             }
         });
     }
-
     updateChart();
 
-    // Envoi état tâche pour AUJOURD'HUI uniquement
+    // Checkbox tâches
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', () => {
             fetch('index.php', {
@@ -118,75 +204,28 @@ if (isset($_GET['chart'])) {
                     task_id: cb.dataset.id,
                     status: cb.checked ? 1 : 0
                 })
-            }).then(() => updateChart());
+            }).then(updateChart);
         });
     });
 
-    // Notification 21h
-    if (Notification.permission !== "granted") {
+    // Notification à 21h
+    if ('Notification' in window) {
         Notification.requestPermission();
-    }
-
-    function sendNotif() {
-        if (Notification.permission === "granted") {
-            new Notification("🕘 Il est 21h ! Pense à cocher tes tâches.");
-        }
-    }
-
-    setInterval(() => {
-        const now = new Date();
-        if (now.getHours() === 21 && now.getMinutes() === 0 && now.getSeconds() < 5) {
-            sendNotif();
-        }
-    }, 1000);
-
-    // Demander la permission de notification
-    async function requestNotificationPermission() {
-        if (!('Notification' in window)) {
-            console.log('Notifications non supportées');
-            return false;
-        }
-        if (Notification.permission === 'granted') return true;
-        if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            return permission === 'granted';
-        }
-        return false;
-    }
-
-    // Planifier notification quotidienne à 21h
-    async function scheduleDailyNotification() {
-        if (!('serviceWorker' in navigator)) return;
-
-        const permissionGranted = await requestNotificationPermission();
-        if (!permissionGranted) return;
-
-        function scheduleNext() {
+        async function notif21h() {
             const now = new Date();
-            const notifTime = new Date();
-            notifTime.setHours(21, 0, 0, 0);
-            if (now >= notifTime) notifTime.setDate(notifTime.getDate() + 1);
-
-            const delay = notifTime.getTime() - now.getTime();
-            setTimeout(() => {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification('🕘 Rappel', {
-                        body: 'Pense à cocher tes tâches !',
-                        icon: '/icon-192.png',
-                        vibrate: [200, 100, 200],
-                        tag: 'daily-task-reminder'
-                    });
-                });
-                scheduleNext(); // replanifie pour le lendemain
-            }, delay);
+            if (now.getHours() === 21 && now.getMinutes() === 0 && now.getSeconds() < 5) {
+                new Notification("🕘 Il est 21h ! Pense à cocher tes tâches.");
+            }
         }
-
-        scheduleNext();
+        setInterval(notif21h, 1000);
     }
 
-    // Appeler la fonction pour activer la notification
-    scheduleDailyNotification();
-
+    // Service Worker pour PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(() =>
+            console.log('Service worker enregistré.')
+        ).catch(console.error);
+    }
 </script>
 </body>
 </html>

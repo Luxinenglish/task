@@ -50,71 +50,26 @@ function getDonutStats($tasks, $period) {
         'data' => [$donePercent, $notDonePercent]
     ];
 }
-
-function getMonthlyEvolution($tasks) {
-    $monthlyData = [];
-
-    foreach ($tasks as $task) {
-        foreach ($task['history'] as $date => $status) {
-            $month = date('Y-m', strtotime($date));
-            if (!isset($monthlyData[$month])) {
-                $monthlyData[$month] = [];
-            }
-
-            if (!isset($monthlyData[$month][$date])) {
-                $monthlyData[$month][$date] = ['done' => 0, 'total' => 0];
-            }
-
-            $monthlyData[$month][$date]['done'] += $status;
-            $monthlyData[$month][$date]['total'] += 1;
-        }
-    }
-
-    $result = ['labels' => [], 'datasets' => []];
-    $colors = ['#007bff', '#28a745', '#ffc107', '#6610f2', '#e83e8c', '#fd7e14'];
-    $i = 0;
-
-    foreach ($monthlyData as $month => $days) {
-        $dates = array_keys($days);
-        sort($dates);
-
-        if (count($dates) > count($result['labels'])) {
-            $result['labels'] = $dates;
-        }
-
-        $data = [];
-        foreach ($result['labels'] as $date) {
-            if (isset($days[$date])) {
-                $ratio = round(($days[$date]['done'] / $days[$date]['total']) * 100, 2);
-                $data[] = $ratio;
-            } else {
-                $data[] = null;
-            }
-        }
-
-        $result['datasets'][] = [
-            'label' => $month,
-            'data' => $data,
-            'fill' => false,
-            'borderColor' => $colors[$i % count($colors)],
-            'tension' => 0.3
-        ];
-
-        $i++;
-    }
-
-    return $result;
-}
-
 // API
 if (isset($_GET['donut'])) {
     $type = $_GET['donut'];
     echo json_encode(getDonutStats($data['tasks'], $type));
     exit;
 }
-
-if (isset($_GET['evolution'])) {
-    echo json_encode(getMonthlyEvolution($data['tasks']));
+// Données du graphique
+if (isset($_GET['evolutionchart'])) {
+    $labels = [];
+    $values = [];
+    for ($i = 0; $i < 30; $i++) {
+        $date = date('Y-m-d', strtotime("-" . (29 - $i) . " days"));
+        $labels[] = date('d/m', strtotime($date));
+        $done = 0;
+        foreach ($data['tasks'] as $task) {
+            $done += !empty($task['history'][$date]) ? 1 : 0;
+        }
+        $values[] = $done;
+    }
+    echo json_encode(['labels' => $labels, 'data' => $values]);
     exit;
 }
 ?>
@@ -168,7 +123,7 @@ if (isset($_GET['evolution'])) {
 <body>
 
 <h2>Évolution mensuelle des tâches</h2>
-<canvas id="evolutionChart" height="120"></canvas>
+<canvas id="evolutionchart" height="100" class="mb-4"></canvas>
 
 <h2>Progression globale</h2>
 <div class="donut-container">
@@ -184,6 +139,27 @@ if (isset($_GET['evolution'])) {
 </div>
 
 <script>
+    // Graphique
+    async function updateevolutionChart() {
+        const res = await fetch('?evolutionchart=1');
+        const json = await res.json();
+        const ctx = document.getElementById('evolutionchart').getContext('2d');
+        if (window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: json.labels,
+                datasets: [{
+                    label: "Tâches accomplies",
+                    data: json.data,
+                    borderColor: 'blue',
+                    backgroundColor: 'lightblue',
+                    fill: true
+                }]
+            }
+        });
+    }
+    updateevolutionChart();
     async function drawDonutChart(id, period, title) {
         try {
             const res = await fetch('?donut=' + period);
@@ -213,34 +189,8 @@ if (isset($_GET['evolution'])) {
         }
     }
 
-    async function updateEvolutionChart() {
-        try {
-            const res = await fetch('?evolution=1');
-            const json = await res.json();
 
-            const ctx = document.getElementById('evolutionChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: json.labels,
-                    datasets: json.datasets
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Évolution mensuelle'
-                        }
-                    }
-                }
-            });
-        } catch (e) {
-            console.error("Erreur lors du chargement de l'évolution", e);
-        }
-    }
 
-    updateEvolutionChart();
     drawDonutChart('donutAll', 'all', 'Tâches accomplies (Total)');
     drawDonutChart('donutWeek', 'week', 'Tâches accomplies (7 derniers jours)');
     drawDonutChart('donutTodayVsYesterday', 'today_vs_yesterday', "Tâches aujourd'hui comparé à hier");
